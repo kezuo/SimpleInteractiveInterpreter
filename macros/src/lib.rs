@@ -1,9 +1,86 @@
 extern crate proc_macro;
-use std::iter::Peekable;
 use proc_macro::{TokenStream, TokenTree};
 use proc_macro2::{Ident, Span};
 use quote::quote;
+use std::iter::Peekable;
 use syntax::{bnf::*, string_pool::StringPool};
+
+trait ToTokenStream {
+    fn to_token_stream(&self) -> proc_macro2::TokenStream;
+}
+
+impl<'p> ToTokenStream for Terminal<'p> {
+    fn to_token_stream(&self) -> proc_macro2::TokenStream {
+        let name = self.name;
+        quote! {
+            Terminal::new(pool.get(#name))
+        }
+    }
+}
+
+impl<'p> ToTokenStream for NonTerminal<'p> {
+    fn to_token_stream(&self) -> proc_macro2::TokenStream {
+        let name = self.name;
+        quote! {
+            NonTerminal::new(pool.get(#name))
+        }
+    }
+}
+
+impl<'p> ToTokenStream for Symbol<'p> {
+    fn to_token_stream(&self) -> proc_macro2::TokenStream {
+        match self {
+            Symbol::NonTerminal(v) => {
+                let nonterm = v.to_token_stream();
+                quote! {
+                    Symbol::NonTerminal(#nonterm)
+                }
+            }
+            Symbol::Terminal(v) => {
+                let term = v.to_token_stream();
+                quote! {
+                    Symbol::Terminal(#term)
+                }
+            }
+        }
+    }
+}
+
+impl<'p> ToTokenStream for Rule<'p> {
+    fn to_token_stream(&self) -> proc_macro2::TokenStream {
+        let name = self.name;
+        let head = self.head.to_token_stream();
+        let body = self
+            .body
+            .iter()
+            .map(|symbol| symbol.to_token_stream())
+            .collect::<Vec<_>>();
+        quote! {
+            Rule {
+                name: #name,
+                head: #head,
+                body: vec![#(#body),*],
+            }
+        }
+    }
+}
+
+impl<'p> ToTokenStream for BNF<'p> {
+    fn to_token_stream(&self) -> proc_macro2::TokenStream {
+        let start = self.start.to_token_stream();
+        let rules = self
+            .rules
+            .iter()
+            .map(|rule| rule.to_token_stream())
+            .collect::<Vec<_>>();
+        quote! {
+            BNF {
+                start: #start,
+                rules: vec![#(#rules),*],
+            }
+        }
+    }
+}
 
 fn parse<'p, T>(tokens: &mut Peekable<T>, pool: &'p StringPool) -> Option<Rule<'p>>
 where
@@ -69,7 +146,7 @@ pub fn bnf(item: TokenStream) -> TokenStream {
         rules.push(rule);
     }
     let bnf = BNF {
-        start: NonTerminal::new(pool.get("start")),
+        start: NonTerminal::new(pool.get("Start")),
         rules,
     };
     let bnf_proxy = BNFProxy::new(&bnf);
@@ -105,17 +182,16 @@ pub fn bnf(item: TokenStream) -> TokenStream {
             }
         })
         .collect::<Vec<_>>();
-    let strs = pool.iter().collect::<Vec<_>>();
-    let pool_get_fn = quote! {
-        pub fn get_pool() -> StringPool {
-            let ret = StringPool::new();
-            [#(#strs),*].iter().for_each(|s| { ret.get(&**s); });
-            ret
+    let create_bnf = bnf.to_token_stream();
+    let get_bnf_fn = quote! {
+        pub fn get_bnf<'p>(pool: &'p StringPool) -> BNF<'p> {
+            let bnf = #create_bnf;
+            bnf
         }
     };
     let result = quote! {
         #(#structs)*
-        #pool_get_fn
+        #get_bnf_fn
     };
     result.into()
 }
@@ -125,5 +201,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn it_works() {}
+    fn it_works() {
+        struct test<'b> {
+            s: &'b str,
+        }
+        let t = test { s: "hello world" };
+        println!("{:?}", quote! {#{t.s}});
+    }
 }

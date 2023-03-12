@@ -54,6 +54,7 @@ pub struct Rule<'p> {
     pub body: Vec<Symbol<'p>>,
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct BNF<'p> {
     pub start: NonTerminal<'p>,
     pub rules: Vec<Rule<'p>>,
@@ -103,9 +104,9 @@ impl<'b, 'p> BNFProxy<'b, 'p> {
 }
 
 #[derive(PartialEq)]
-enum ParseTree<'b, 'p> {
-    End,
-    Tree(&'b Rule<'p>, Vec<ParseTree<'b, 'p>>),
+pub struct ParseTree<'b, 'p> {
+    rule: &'b Rule<'p>,
+    sub_trees: Vec<ParseTree<'b, 'p>>,
 }
 
 fn parse_rule<'b, 't, 'p>(
@@ -139,7 +140,7 @@ fn parse_rule<'b, 't, 'p>(
             },
         }
     }
-    Some((token_iter, ParseTree::Tree(rule, sub_trees)))
+    Some((token_iter, ParseTree { rule, sub_trees }))
 }
 
 fn parse_head<'b, 't, 'p>(
