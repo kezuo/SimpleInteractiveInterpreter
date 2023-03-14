@@ -105,8 +105,8 @@ impl<'b, 'p> BNFProxy<'b, 'p> {
 
 #[derive(PartialEq)]
 pub struct ParseTree<'b, 'p> {
-    rule: &'b Rule<'p>,
-    sub_trees: Vec<ParseTree<'b, 'p>>,
+    pub rule: &'b Rule<'p>,
+    pub sub_trees: Vec<ParseTree<'b, 'p>>,
 }
 
 fn parse_rule<'b, 't, 'p>(
@@ -157,7 +157,7 @@ fn parse_head<'b, 't, 'p>(
     }
 }
 
-fn parse<'b, 't, 'p>(
+pub fn parse<'b, 't, 'p>(
     token_iter: Iter<'t, Token<'p>>,
     bnf: &'_ BNFProxy<'b, 'p>,
     pool: &'p StringPool,

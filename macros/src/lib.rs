@@ -176,6 +176,7 @@ pub fn bnf(item: TokenStream) -> TokenStream {
                 })
                 .collect::<Vec<_>>();
             quote! {
+                #[derive(Debug)]
                 enum #head_ident {
                     #(#variants),*
                 }

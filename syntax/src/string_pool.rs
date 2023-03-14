@@ -26,6 +26,10 @@ impl StringPool {
         }
     }
 
+    pub fn str_eq(&self, str0: &str, str1: &str) -> bool {
+        std::ptr::eq(self.get(str0), self.get(str1))
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = &Box<str>> {
         self.strs.iter()
     }
